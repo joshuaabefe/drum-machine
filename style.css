@@ -1,0 +1,546 @@
+/* =====================================================
+   BeatByJosh — style.css
+   Supports dark (default) and light themes via
+   [data-theme="dark"] / [data-theme="light"] on <html>
+   ===================================================== */
+
+/* ── CSS VARIABLES: DARK THEME (default) ───────────── */
+:root,
+[data-theme="dark"] {
+  /* Brand palette */
+  --sky:    #8ECAE6;
+  --ocean:  #219EBC;
+  --navy:   #023047;
+  --amber:  #FFB703;
+  --orange: #FB8500;
+
+  /* Semantic tokens */
+  --bg-page:       #011e30;
+  --bg-card:       #023047;
+  --bg-card-grad:  linear-gradient(160deg, #03405e 0%, #023047 60%, #011e30 100%);
+  --bg-screen:     #000d16;
+  --bg-pad:        linear-gradient(145deg, rgba(255,255,255,0.07) 0%, transparent 60%),
+                   linear-gradient(160deg, #1b7fa0 0%, #155f78 50%, #0d3d50 100%);
+  --bg-pad-active: linear-gradient(145deg, rgba(255,183,3,0.18) 0%, rgba(255,183,3,0.05) 60%),
+                   linear-gradient(160deg, #219EBC 0%, #1a7a9c 50%, #0f4c62 100%);
+
+  --border-card:   rgba(142,202,230,0.18);
+  --border-pad:    rgba(142,202,230,0.2);
+  --border-active: var(--amber);
+
+  --text-primary:  var(--sky);
+  --text-muted:    rgba(142,202,230,0.45);
+  --text-screen:   var(--amber);
+  --text-hint:     rgba(142,202,230,0.35);
+  --text-hint-em:  rgba(142,202,230,0.6);
+
+  --shadow-card:   0 8px 40px rgba(0,0,0,0.55), 0 0 80px rgba(33,158,188,0.07);
+  --shadow-pad:    0 4px 12px rgba(0,0,0,0.45),
+                   inset 0 1px 0 rgba(255,255,255,0.1),
+                   inset 0 -2px 4px rgba(0,0,0,0.3);
+
+  /* Site header / footer */
+  --header-bg:     rgba(1,30,48,0.85);
+  --footer-bg:     rgba(1,30,48,0.6);
+  --footer-text:   rgba(142,202,230,0.45);
+  --footer-link:   var(--orange);
+
+  /* Clock */
+  --clock-time:    var(--amber);
+  --clock-date:    rgba(142,202,230,0.5);
+
+  /* Toggle thumb (power) */
+  --thumb-off:     var(--sky);
+  --thumb-on:      var(--orange);
+
+  /* Theme button */
+  --theme-btn-bg:  rgba(142,202,230,0.08);
+  --theme-btn-border: rgba(142,202,230,0.2);
+}
+
+/* ── CSS VARIABLES: LIGHT THEME ─────────────────────── */
+[data-theme="light"] {
+  --bg-page:       #e8f4f9;
+  --bg-card:       #ffffff;
+  --bg-card-grad:  linear-gradient(160deg, #f0faff 0%, #ffffff 60%, #e8f4f9 100%);
+  --bg-screen:     #0a1f2e;
+  --bg-pad:        linear-gradient(145deg, rgba(255,255,255,0.6) 0%, transparent 60%),
+                   linear-gradient(160deg, #5bbcd8 0%, #3aabbf 50%, #219EBC 100%);
+  --bg-pad-active: linear-gradient(145deg, rgba(255,183,3,0.25) 0%, rgba(255,183,3,0.08) 60%),
+                   linear-gradient(160deg, #FFB703 0%, #FB8500 50%, #e07800 100%);
+
+  --border-card:   rgba(33,158,188,0.2);
+  --border-pad:    rgba(33,158,188,0.3);
+  --border-active: var(--orange);
+
+  --text-primary:  #023047;
+  --text-muted:    rgba(2,48,71,0.5);
+  --text-screen:   var(--amber);
+  --text-hint:     rgba(2,48,71,0.4);
+  --text-hint-em:  rgba(2,48,71,0.65);
+
+  --shadow-card:   0 8px 40px rgba(33,158,188,0.12), 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-pad:    0 4px 14px rgba(33,158,188,0.18),
+                   inset 0 1px 0 rgba(255,255,255,0.8),
+                   inset 0 -2px 4px rgba(0,0,0,0.06);
+
+  --header-bg:     rgba(232,244,249,0.9);
+  --footer-bg:     rgba(232,244,249,0.7);
+  --footer-text:   rgba(2,48,71,0.5);
+  --footer-link:   var(--orange);
+
+  --clock-time:    var(--orange);
+  --clock-date:    rgba(2,48,71,0.5);
+
+  --thumb-off:     #aaa;
+  --thumb-on:      var(--orange);
+
+  --theme-btn-bg:  rgba(2,48,71,0.06);
+  --theme-btn-border: rgba(2,48,71,0.15);
+}
+
+/* ── RESET ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { transition: background 0.35s ease; }
+
+body {
+  font-family: 'Oswald', sans-serif;
+  background: var(--bg-page);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  transition: background 0.35s ease;
+}
+
+/* ── PAGE BACKGROUND ─────────────────────────────────── */
+.page-bg {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background-image:
+    radial-gradient(circle at 18% 18%, rgba(33,158,188,0.10) 0%, transparent 50%),
+    radial-gradient(circle at 82% 82%, rgba(251,133,0,0.07) 0%, transparent 50%),
+    radial-gradient(rgba(142,202,230,0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 28px 28px;
+  transition: background 0.35s;
+}
+
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+
+/* ── TOP CONTROLS (theme + power grouped) ───────────── */
+.top-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── THEME TOGGLE — compact icon circle ─────────────── */
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--theme-btn-bg);
+  border: 1px solid var(--theme-btn-border);
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+.theme-btn:hover  { transform: rotate(20deg) scale(1.12); }
+.theme-btn:active { transform: scale(0.9); }
+.theme-icon { font-size: 1rem; line-height: 1; }
+
+/* ── MACHINE CARD ────────────────────────────────────── */
+.machine-card {
+  background: var(--bg-card-grad);
+  border: 1px solid var(--border-card);
+  border-radius: 24px;
+  padding: clamp(18px, 4vw, 34px);
+  width: calc(100% - 32px);
+  max-width: 520px;
+  box-shadow: var(--shadow-card);
+  transition: opacity 0.3s ease, background 0.35s, border-color 0.35s, box-shadow 0.35s;
+}
+
+.machine-card.powered-off {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.machine-card.powered-off .power-toggle {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* ── TOP BAR ─────────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-primary);
+  font-size: clamp(0.85rem, 3vw, 1.1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.35s;
+}
+.brand em { color: var(--orange); font-style: normal; }
+.brand-icon {
+  color: var(--orange);
+  font-size: 1.2em;
+  animation: spin-slow 8s linear infinite;
+}
+
+/* ── CLOCK ───────────────────────────────────────────── */
+.clock-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.clock-time {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(0.9rem, 2.8vw, 1.1rem);
+  color: var(--clock-time);
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 10px rgba(255,183,3,0.5);
+  transition: color 0.35s;
+}
+.clock-date {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(0.5rem, 1.5vw, 0.6rem);
+  color: var(--clock-date);
+  letter-spacing: 0.1em;
+  transition: color 0.35s;
+}
+
+/* ── POWER TOGGLE ────────────────────────────────────── */
+.power-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.power-toggle input { display: none; }
+
+.toggle-track {
+  width: 42px;
+  height: 22px;
+  background: rgba(128,128,128,0.15);
+  border: 1px solid rgba(142,202,230,0.2);
+  border-radius: 99px;
+  position: relative;
+  transition: background 0.25s;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--thumb-off);
+  transition: transform 0.25s, background 0.25s, box-shadow 0.25s;
+}
+.power-toggle input:checked + .toggle-track {
+  background: rgba(251,133,0,0.22);
+  border-color: var(--orange);
+}
+.power-toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(20px);
+  background: var(--thumb-on);
+  box-shadow: 0 0 10px rgba(251,133,0,0.7);
+}
+.toggle-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  transition: color 0.35s;
+}
+
+/* ── DISPLAY PANEL ────────────────────────────────────── */
+.display-panel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.display-screen {
+  flex: 1;
+  min-width: 160px;
+  background: var(--bg-screen);
+  border: 1px solid rgba(33,158,188,0.3);
+  border-radius: 12px;
+  padding: 11px 15px;
+  position: relative;
+  overflow: hidden;
+  background-image: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px
+  );
+  transition: border-color 0.35s;
+}
+.display-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(33,158,188,0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.screen-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  color: rgba(142,202,230,0.35);
+  margin-bottom: 4px;
+}
+.screen-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(1rem, 4vw, 1.35rem);
+  color: var(--text-screen);
+  text-shadow: 0 0 12px rgba(255,183,3,0.65);
+  letter-spacing: 0.1em;
+  min-height: 1.6em;
+  display: flex;
+  align-items: center;
+}
+.screen-text.flash {
+  animation: screen-flash 0.2s ease-out;
+}
+@keyframes screen-flash {
+  0%   { color: #fff; text-shadow: 0 0 24px #fff, 0 0 40px var(--amber); }
+  100% { color: var(--text-screen); text-shadow: 0 0 12px rgba(255,183,3,0.65); }
+}
+
+/* ── VOLUME CONTROL ──────────────────────────────────── */
+.volume-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 58px;
+}
+.vol-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  transition: color 0.35s;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 56px;
+  height: 4px;
+  background: rgba(142,202,230,0.15);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+  transform: rotate(-90deg);
+  margin: 14px 0;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(255,183,3,0.55);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: none;
+  cursor: pointer;
+}
+.vol-value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.58rem;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+
+/* ── PADS GRID ───────────────────────────────────────── */
+.pads-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(10px, 2.5vw, 16px);
+}
+
+/* ── DRUM PAD ────────────────────────────────────────── */
+.drum-pad {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  border: 1.5px solid var(--border-pad);
+  overflow: hidden;
+  cursor: pointer;
+  outline: none;
+  background: var(--bg-pad);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: var(--shadow-pad);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.drum-pad:hover {
+  border-color: rgba(255,183,3,0.5);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.35),
+    0 0 16px rgba(255,183,3,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.drum-pad:active,
+.drum-pad.active {
+  transform: translateY(1px) scale(0.96);
+  border-color: var(--border-active);
+  background: var(--bg-pad-active);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.4),
+    0 0 28px rgba(255,183,3,0.4),
+    0 0 56px rgba(255,183,3,0.12),
+    inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.key-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(1.4rem, 5vw, 1.85rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  pointer-events: none;
+  transition: color 0.12s, text-shadow 0.12s;
+}
+.drum-pad.active .key-label,
+.drum-pad:active .key-label {
+  color: var(--amber);
+  text-shadow: 0 0 14px rgba(255,183,3,0.9);
+}
+
+.sound-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(0.48rem, 1.7vw, 0.62rem);
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: color 0.12s;
+}
+.drum-pad.active .sound-name,
+.drum-pad:active .sound-name {
+  color: rgba(255,183,3,0.8);
+}
+
+/* ── PAD RIPPLE ──────────────────────────────────────── */
+.pad-ripple {
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+}
+.drum-pad.active .pad-ripple::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  background: radial-gradient(circle at center, rgba(255,183,3,0.22) 0%, transparent 70%);
+  animation: pad-pulse 0.4s ease-out forwards;
+}
+@keyframes pad-pulse {
+  0%   { opacity: 1; transform: scale(0.85); }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+
+/* ── HINT BAR ────────────────────────────────────────── */
+.hint-bar {
+  margin-top: 18px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(0.58rem, 1.8vw, 0.68rem);
+  color: var(--text-hint);
+  letter-spacing: 0.04em;
+  transition: color 0.35s;
+}
+.hint-bar strong { color: var(--text-hint-em); }
+
+/* ── SITE FOOTER ─────────────────────────────────────── */
+.site-footer {
+  margin-top: 28px;
+  padding: 16px 20px;
+  width: calc(100% - 32px);
+  max-width: 520px;
+  background: var(--footer-bg);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(0.58rem, 1.8vw, 0.68rem);
+  color: var(--footer-text);
+  letter-spacing: 0.06em;
+  text-align: center;
+  transition: background 0.35s, border-color 0.35s, color 0.35s;
+}
+.footer-dot { opacity: 0.4; }
+.site-footer a {
+  color: var(--footer-link);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(251,133,0,0.35);
+  transition: border-color 0.2s, color 0.2s;
+}
+.site-footer a:hover {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 400px) {
+  .machine-card { padding: 14px; border-radius: 18px; }
+  .top-bar { gap: 6px; }
+  .clock-time { font-size: 0.8rem; }
+  .clock-date { font-size: 0.48rem; }
+  input[type="range"] { width: 46px; }
+}
+
+@media (min-width: 600px) {
+  .pads-grid { gap: 14px; }
+}
