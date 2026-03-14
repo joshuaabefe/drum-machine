@@ -80,8 +80,6 @@ drum-machine/
 ├── style.css         # Styling, themes, animations
 ├── script.js         # Audio synthesis, interactions, clock
 ├── favicon.ico       # Browser tab icon
-├── favicon.png       # High-res favicon + Apple touch icon
-├── .gitignore        # Git ignored files
 ├── LICENSE           # MIT License
 └── README.md         # You are here
 ```
