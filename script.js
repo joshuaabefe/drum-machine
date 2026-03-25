@@ -1,315 +1,173 @@
 /**
  * ============================================================
  * BeatByJosh — script.js
- * ============================================================
+ * Mobile-first rebuild.
  *
- * KEY FIX — Why sounds now work 100% of the time:
- *   Instead of loading .wav files (which fail silently due to
- *   browser autoplay policies, MIME types, or CORS), every drum
- *   sound is SYNTHESIZED on-the-fly using the Web Audio API.
- *   No files. No network. No loading errors. Just pure audio.
- *
- * FEATURES:
- *   • 9 synthesized drum sounds (kick, snare, hi-hat…)
- *   • Mouse click + keyboard (Q W E / A S D / Z X C)
- *   • Live clock (date + time)
- *   • Dark / Light theme toggle
- *   • Volume slider
- *   • Power on/off toggle
+ * KEY MOBILE FIXES vs previous version:
+ *   1. touchstart listener fires audio IMMEDIATELY — no 300ms
+ *      click delay that made it feel sluggish / broken
+ *   2. preventDefault() on touch stops ghost click after tap
+ *   3. touch-action: manipulation in CSS kills double-tap zoom
+ *   4. AudioContext is resumed on the very first touch/click
+ *      (required by iOS Safari's autoplay policy)
+ *   5. Volume slider is now horizontal — easy to drag with thumb
  * ============================================================
  */
 
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── WEB AUDIO CONTEXT ──────────────────────────────────────
-  /**
-   * AudioContext is the engine behind all sound synthesis.
-   * We create ONE context and reuse it for all sounds.
-   * Browsers require a user gesture before audio can play —
-   * clicking a pad IS that gesture, so it works perfectly.
-   */
   let audioCtx = null;
 
   function getAudioContext() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    // Resume if browser suspended it (autoplay policy)
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
     return audioCtx;
   }
 
-  // ── SOUND SYNTHESIS FUNCTIONS ─────────────────────────────
-  /**
-   * Each function creates a short audio buffer and plays it.
-   * @param {number} volume  — 0.0 to 1.0
-   *
-   * Technique overview:
-   *   • OscillatorNode  → generates tones (sine, square, etc.)
-   *   • AudioBuffer     → raw PCM data for noise (snare, hi-hat, etc.)
-   *   • GainNode        → controls volume + envelope shape
-   *   • connect() chain → source → gain → destination (speakers)
-   */
+  // ── NOISE BUFFER HELPER ────────────────────────────────────
+  function makeNoiseBuffer(ctx, duration) {
+    const len    = Math.ceil(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data   = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buffer;
+  }
 
-  /** Helper: create a gain node with an instant level */
   function makeGain(ctx, value) {
     const g = ctx.createGain();
     g.gain.setValueAtTime(value, ctx.currentTime);
     return g;
   }
 
-  /** Helper: fill a buffer with white noise samples */
-  function makeNoiseBuffer(ctx, duration) {
-    const sampleRate = ctx.sampleRate;
-    const length     = Math.ceil(sampleRate * duration);
-    const buffer     = ctx.createBuffer(1, length, sampleRate);
-    const data       = buffer.getChannelData(0);
-    for (let i = 0; i < length; i++) {
-      data[i] = Math.random() * 2 - 1; // values between -1 and 1
-    }
-    return buffer;
-  }
+  // ── DRUM SYNTHESISERS ──────────────────────────────────────
 
-  // ── KICK DRUM ──────────────────────────────────────────────
-  function playKick(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    // A sine oscillator whose pitch drops fast = classic kick "thud"
-    const osc  = ctx.createOscillator();
-    const gain = makeGain(ctx, volume * 1.0);
-
+  function playKick(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g   = makeGain(ctx, vol);
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, now);
-    osc.frequency.exponentialRampToValueAtTime(0.001, now + 0.5); // pitch drop
-
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);     // fade out
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.5);
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(0.001, t + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.5);
   }
 
-  // ── SNARE ─────────────────────────────────────────────────
-  function playSnare(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    // Noise burst for the "sss" snare sound
-    const noiseBuffer = makeNoiseBuffer(ctx, 0.3);
-    const noise       = ctx.createBufferSource();
-    noise.buffer      = noiseBuffer;
-
-    // Bandpass filter focuses the noise into snare frequencies
-    const filter      = ctx.createBiquadFilter();
-    filter.type       = 'bandpass';
-    filter.frequency.value  = 3000;
-    filter.Q.value          = 0.7;
-
-    const noiseGain   = makeGain(ctx, volume * 0.7);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
-    // Tone component for the "crack"
-    const osc         = ctx.createOscillator();
-    osc.type          = 'triangle';
-    osc.frequency.setValueAtTime(200, now);
-    const oscGain     = makeGain(ctx, volume * 0.5);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-
-    osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
-
-    noise.start(now);
-    noise.stop(now + 0.3);
-    osc.start(now);
-    osc.stop(now + 0.15);
+  function playSnare(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    // Noise burst
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer(ctx, 0.3);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.7;
+    const ng = makeGain(ctx, vol * 0.7);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    noise.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
+    noise.start(t); noise.stop(t + 0.3);
+    // Tone crack
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle'; osc.frequency.value = 200;
+    const og = makeGain(ctx, vol * 0.5);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(og); og.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.15);
   }
 
-  // ── CLOSED HI-HAT ─────────────────────────────────────────
-  function playHihat(volume) {
-    const ctx   = getAudioContext();
-    const now   = ctx.currentTime;
-
-    const noiseBuffer = makeNoiseBuffer(ctx, 0.1);
-    const noise       = ctx.createBufferSource();
-    noise.buffer      = noiseBuffer;
-
-    // High-pass filter makes it sound "tinny" like a real hat
-    const filter  = ctx.createBiquadFilter();
-    filter.type   = 'highpass';
-    filter.frequency.value = 8000;
-
-    const gain    = makeGain(ctx, volume * 0.6);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-
-    noise.start(now);
-    noise.stop(now + 0.1);
+  function playHihat(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer(ctx, 0.1);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 8000;
+    const g = makeGain(ctx, vol * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    noise.connect(hp); hp.connect(g); g.connect(ctx.destination);
+    noise.start(t); noise.stop(t + 0.1);
   }
 
-  // ── CLAP ──────────────────────────────────────────────────
-  function playClap(volume) {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-
-    // Three quick noise bursts close together = clap texture
+  function playClap(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
     [0, 0.01, 0.02].forEach((offset, i) => {
-      const noiseBuffer = makeNoiseBuffer(ctx, 0.15);
-      const noise       = ctx.createBufferSource();
-      noise.buffer      = noiseBuffer;
-
-      const filter      = ctx.createBiquadFilter();
-      filter.type       = 'bandpass';
-      filter.frequency.value = 1200;
-      filter.Q.value         = 0.5;
-
-      const fadeTime    = now + offset + 0.08 + i * 0.01;
-      const gain        = makeGain(ctx, volume * 0.6);
-      gain.gain.exponentialRampToValueAtTime(0.001, fadeTime);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      noise.start(now + offset);
-      noise.stop(fadeTime);
+      const noise = ctx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(ctx, 0.15);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 0.5;
+      const g = makeGain(ctx, vol * 0.6);
+      g.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.08 + i * 0.01);
+      noise.connect(bp); bp.connect(g); g.connect(ctx.destination);
+      noise.start(t + offset); noise.stop(t + offset + 0.15);
     });
   }
 
-  // ── TOM ───────────────────────────────────────────────────
-  function playTom(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    const osc  = ctx.createOscillator();
-    osc.type   = 'sine';
-    osc.frequency.setValueAtTime(100, now);
-    osc.frequency.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-    const gain = makeGain(ctx, volume * 0.9);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.4);
+  function playTom(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(100, t);
+    osc.frequency.exponentialRampToValueAtTime(0.001, t + 0.4);
+    const g = makeGain(ctx, vol * 0.9);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.4);
   }
 
-  // ── OPEN HI-HAT ───────────────────────────────────────────
-  function playOpenhat(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    const noiseBuffer = makeNoiseBuffer(ctx, 0.5);
-    const noise       = ctx.createBufferSource();
-    noise.buffer      = noiseBuffer;
-
-    const filter      = ctx.createBiquadFilter();
-    filter.type       = 'highpass';
-    filter.frequency.value = 7000;
-
-    // Slower fade = "open" sound (hat doesn't close quickly)
-    const gain        = makeGain(ctx, volume * 0.55);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + 0.5);
+  function playOpenhat(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer(ctx, 0.5);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 7000;
+    const g = makeGain(ctx, vol * 0.55);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    noise.connect(hp); hp.connect(g); g.connect(ctx.destination);
+    noise.start(t); noise.stop(t + 0.5);
   }
 
-  // ── RIM SHOT ──────────────────────────────────────────────
-  function playRim(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    const osc  = ctx.createOscillator();
-    osc.type   = 'square';
-    osc.frequency.setValueAtTime(480, now);
-
-    const gain = makeGain(ctx, volume * 0.4);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.06);
+  function playRim(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'square'; osc.frequency.value = 480;
+    const g = makeGain(ctx, vol * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.06);
   }
 
-  // ── CRASH CYMBAL ──────────────────────────────────────────
-  function playCrash(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    const noiseBuffer = makeNoiseBuffer(ctx, 1.5);
-    const noise       = ctx.createBufferSource();
-    noise.buffer      = noiseBuffer;
-
-    // Two stacked filters give crash its shimmer
-    const hp   = ctx.createBiquadFilter();
-    hp.type    = 'highpass';
-    hp.frequency.value = 5000;
-
-    const bp   = ctx.createBiquadFilter();
-    bp.type    = 'bandpass';
-    bp.frequency.value = 9000;
-    bp.Q.value         = 0.5;
-
-    const gain = makeGain(ctx, volume * 0.6);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
-
-    noise.connect(hp);
-    hp.connect(bp);
-    bp.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + 1.5);
+  function playCrash(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer(ctx, 1.5);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 5000;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 9000; bp.Q.value = 0.5;
+    const g = makeGain(ctx, vol * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+    noise.connect(hp); hp.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    noise.start(t); noise.stop(t + 1.5);
   }
 
-  // ── PERC ──────────────────────────────────────────────────
-  function playPerc(volume) {
-    const ctx  = getAudioContext();
-    const now  = ctx.currentTime;
-
-    const osc  = ctx.createOscillator();
-    osc.type   = 'triangle';
-    osc.frequency.setValueAtTime(900, now);
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
-
-    const gain = makeGain(ctx, volume * 0.65);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.2);
+  function playPerc(vol) {
+    const ctx = getAudioContext(), t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(900, t);
+    osc.frequency.exponentialRampToValueAtTime(300, t + 0.15);
+    const g = makeGain(ctx, vol * 0.65);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.2);
   }
 
-  // ── SOUND MAP ─────────────────────────────────────────────
-  /** Maps data-sound attribute value → synthesis function */
   const soundMap = {
-    kick:    playKick,
-    snare:   playSnare,
-    hihat:   playHihat,
-    clap:    playClap,
-    tom:     playTom,
-    openhat: playOpenhat,
-    rim:     playRim,
-    crash:   playCrash,
-    perc:    playPerc,
+    kick: playKick, snare: playSnare, hihat: playHihat,
+    clap: playClap, tom: playTom, openhat: playOpenhat,
+    rim: playRim, crash: playCrash, perc: playPerc,
   };
 
   // ── DOM REFERENCES ─────────────────────────────────────────
@@ -327,69 +185,65 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── STATE ──────────────────────────────────────────────────
   let isPoweredOn   = true;
   let currentVolume = parseFloat(volumeSlider.value);
-  let currentTheme  = 'dark'; // 'dark' | 'light'
+  let currentTheme  = 'dark';
 
-  // Key → pad lookup for fast keyboard handling
+  // Key → pad map for keyboard handler
   const keyToPadMap = new Map();
-  pads.forEach(pad => {
-    keyToPadMap.set(pad.dataset.key.toUpperCase(), pad);
-  });
+  pads.forEach(pad => keyToPadMap.set(pad.dataset.key.toUpperCase(), pad));
 
   // ── PLAY PAD ───────────────────────────────────────────────
   function playPad(pad) {
     if (!isPoweredOn) return;
-
-    const soundKey = pad.dataset.sound;       // e.g. "kick"
-    const playFn   = soundMap[soundKey];      // get the synth function
-
-    if (playFn) {
-      playFn(currentVolume);                  // synthesize and play!
-    }
-
-    updateDisplay(pad.dataset.name);           // update LCD screen
-    activatePad(pad);                          // trigger CSS animation
+    const fn = soundMap[pad.dataset.sound];
+    if (fn) fn(currentVolume);
+    updateDisplay(pad.dataset.name);
+    activatePad(pad);
   }
 
-  // ── UPDATE DISPLAY ─────────────────────────────────────────
   function updateDisplay(text) {
     displayText.textContent = text;
     displayText.classList.remove('flash');
-    void displayText.offsetWidth;             // force reflow to re-trigger animation
+    void displayText.offsetWidth; // force reflow
     displayText.classList.add('flash');
   }
 
-  // ── PAD ANIMATION ──────────────────────────────────────────
   function activatePad(pad) {
     pad.classList.add('active');
-    setTimeout(() => pad.classList.remove('active'), 300);
+    setTimeout(() => pad.classList.remove('active'), 280);
   }
 
-  // ── CLICK LISTENERS ───────────────────────────────────────
+  // ── TOUCH EVENTS (mobile — fires immediately, no 300ms lag) ─
   pads.forEach(pad => {
-    pad.addEventListener('click', () => playPad(pad));
+    pad.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // stops ghost click firing after touchend
+      playPad(pad);
+    }, { passive: false });
+
+    // Click fallback for desktop / devices without touch
+    pad.addEventListener('click', () => {
+      // Only fire on non-touch (touchstart already handled it)
+      if (!('ontouchstart' in window)) {
+        playPad(pad);
+      }
+    });
   });
 
-  // ── KEYBOARD LISTENER ─────────────────────────────────────
-  document.addEventListener('keydown', (event) => {
-    if (!isPoweredOn) return;
-    if (event.repeat) return;                 // ignore held keys
-
-    const key = event.key.toUpperCase();
-    if (keyToPadMap.has(key)) {
-      playPad(keyToPadMap.get(key));
-    }
+  // ── KEYBOARD ──────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (!isPoweredOn || e.repeat) return;
+    const pad = keyToPadMap.get(e.key.toUpperCase());
+    if (pad) playPad(pad);
   });
 
-  // ── VOLUME SLIDER ─────────────────────────────────────────
+  // ── VOLUME ────────────────────────────────────────────────
   volumeSlider.addEventListener('input', () => {
     currentVolume = parseFloat(volumeSlider.value);
     volDisplay.textContent = `${Math.round(currentVolume * 100)}%`;
   });
 
-  // ── POWER SWITCH ──────────────────────────────────────────
+  // ── POWER ─────────────────────────────────────────────────
   powerSwitch.addEventListener('change', () => {
     isPoweredOn = powerSwitch.checked;
-
     if (isPoweredOn) {
       machineCard.classList.remove('powered-off');
       updateDisplay('— READY —');
@@ -400,49 +254,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── THEME TOGGLE ──────────────────────────────────────────
+  // ── THEME ─────────────────────────────────────────────────
   themeToggle.addEventListener('click', () => {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', currentTheme);
-
-    if (currentTheme === 'light') {
-      themeIcon.textContent  = '🌙';
-    } else {
-      themeIcon.textContent  = '☀️';
-    }
+    themeIcon.textContent = currentTheme === 'light' ? '🌙' : '☀️';
   });
 
-  // ── LIVE CLOCK ────────────────────────────────────────────
-  /**
-   * Updates the clock every second.
-   * Uses Intl.DateTimeFormat for clean, locale-aware formatting.
-   */
+  // Touch handler for theme button too
+  themeToggle.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    themeIcon.textContent = currentTheme === 'light' ? '🌙' : '☀️';
+  }, { passive: false });
+
+  // ── CLOCK ─────────────────────────────────────────────────
   const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN',
                   'JUL','AUG','SEP','OCT','NOV','DEC'];
 
   function updateClock() {
     const now = new Date();
-
-    // Time: HH:MM:SS with leading zeros
-    const hh  = String(now.getHours()).padStart(2, '0');
-    const mm  = String(now.getMinutes()).padStart(2, '0');
-    const ss  = String(now.getSeconds()).padStart(2, '0');
+    const hh  = String(now.getHours()).padStart(2,'0');
+    const mm  = String(now.getMinutes()).padStart(2,'0');
+    const ss  = String(now.getSeconds()).padStart(2,'0');
     clockTime.textContent = `${hh}:${mm}:${ss}`;
-
-    // Date: DAY DD MON YYYY
-    const day  = DAYS[now.getDay()];
-    const dd   = String(now.getDate()).padStart(2, '0');
-    const mon  = MONTHS[now.getMonth()];
-    const yyyy = now.getFullYear();
-    clockDate.textContent = `${day} ${dd} ${mon} ${yyyy}`;
+    const d = DAYS[now.getDay()];
+    const dd = String(now.getDate()).padStart(2,'0');
+    const mo = MONTHS[now.getMonth()];
+    clockDate.textContent = `${d} ${dd} ${mo} ${now.getFullYear()}`;
   }
 
-  // Run once immediately, then every second
   updateClock();
   setInterval(updateClock, 1000);
 
-  // ── READY ─────────────────────────────────────────────────
-  console.log('🥁 BeatByJosh ready! Press Q W E / A S D / Z X C or click the pads.');
+  console.log('🥁 BeatByJosh ready!');
 
-}); // end DOMContentLoaded
+});
